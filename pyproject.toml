@@ -6,11 +6,13 @@ authors = [
     {name = "dolbaeb",email = "kohiry@mail.ru"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13.0,<4.0"
 dependencies = [
     "torch (>=2.7.0,<3.0.0)",
     "numpy (>=2.2.5,<3.0.0)",
-    "requests (>=2.32.3,<3.0.0)"
+    "requests (>=2.32.3,<3.0.0)",
+    "huggingface-hub[cli] (>=0.30.2,<0.31.0)",
+    "datasets (>=3.5.1,<4.0.0)"
 ]
 
 
