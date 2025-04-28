@@ -1,6 +1,8 @@
 from my_own_easy_llm import tokenize, SimpleRNNModel
 import torch
 
+# https://music.yandex.ru/album/33852636/track/132527339
+
 
 def generate_response(model, vocab, input_text, max_len=20, device="cpu"):
     model.eval()  # Переводим модель в режим оценки
