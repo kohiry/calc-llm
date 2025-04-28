@@ -6,14 +6,15 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
-dataset = load_dataset("daily_dialog")
 
+dataset = load_dataset("daily_dialog")
 # ==== vars =====
 
 BATCH_SIZE = 16
-EMBEDDING_DIM = 32
-HIDDEN_SIZE = 64
+EMBEDDING_DIM = 64
+HIDDEN_SIZE = 128
 LR = 0.001
+DROPOUT_PROB = 0.2
 
 # ===============
 
@@ -28,9 +29,6 @@ def get_pairs():
             target_text = utterances[i + 1]
             pairs.append((input_text, target_text))
     return pairs
-
-
-pairs = get_pairs()
 
 
 def vocabular(pairs: list[tuple[str, str]]):
@@ -49,8 +47,6 @@ def vocabular(pairs: list[tuple[str, str]]):
 
     return vocab
 
-
-vocab = vocabular(pairs)
 
 # tokenizer
 
@@ -74,8 +70,6 @@ def tokenize_pairs(pairs):
     return res
 
 
-tokenized_pairs = tokenize_pairs(pairs)
-
 # ==== DATASET CLASS FOR TORCH AND PADDING =====
 
 
@@ -89,9 +83,6 @@ class DialogueDataset(Dataset):
     def __getitem__(self, idx):
         src, tgt = self.tokenized_pairs[idx]
         return torch.tensor(src, dtype=torch.long), torch.tensor(tgt, dtype=torch.long)
-
-
-dataset = DialogueDataset(tokenized_pairs)
 
 
 # PADDING
@@ -123,11 +114,6 @@ def collate_fn(batch):
     }
 
 
-train_loader = DataLoader(
-    dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
-)
-
-
 # Simple RNN model imp
 
 
@@ -137,6 +123,7 @@ class SimpleRNNModel(nn.Module):
 
         # Embed
         self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
+        self.dropout = nn.Dropout(DROPOUT_PROB)
 
         # RNN
         self.rnn = nn.GRU(EMBEDDING_DIM, hidden_size=HIDDEN_SIZE, batch_first=True)
@@ -147,51 +134,59 @@ class SimpleRNNModel(nn.Module):
     def forward(self, src):
         embedded = self.embedding(src)  # (batch_size, seq_len, embedding_dim
         out, _ = self.rnn(embedded)  # outputs: (batch_size, seq_len, hidden_size)
+        out = self.dropout(out)
         logits = self.fc(out)  # logits: (batch_size, seq_len, vocab_size)
         # logits - предсказание на каждый токен
         return logits
 
 
-model = SimpleRNNModel(len(vocab))
+if __name__ == "__main__":
 
+    pairs = get_pairs()
+    vocab = vocabular(pairs)
+    tokenized_pairs = tokenize_pairs(pairs)
+    dataset = DialogueDataset(tokenized_pairs)
+    train_loader = DataLoader(
+        dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
+    )
+    model = SimpleRNNModel(len(vocab))
 
-criterion = nn.CrossEntropyLoss(ignore_index=vocab["<pad>"])
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    criterion = nn.CrossEntropyLoss(ignore_index=vocab["<pad>"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
-# training
+    # training
 
-for epoch in range(1):
-    total_loss = 0
-    for i, batch in enumerate(train_loader):
-        print(f"Осталось до конца эпохи № {epoch}: {i} из {len(train_loader)}")
-        src_batch = batch["src"]
-        tgt_batch = batch["tgt"]
+    for epoch in range(10):
+        total_loss = 0
+        for i, batch in enumerate(train_loader):
+            print(f"Осталось до конца эпохи № {epoch}: {i} из {len(train_loader)}")
+            src_batch = batch["src"]
+            tgt_batch = batch["tgt"]
 
-        optimizer.zero_grad()
+            optimizer.zero_grad()
 
-        logits = model(src_batch)
-        logits = logits[:, :-1, :].contiguous().view(-1, len(vocab))
-        targets = tgt_batch[:, 1:].contiguous().view(-1)
+            logits = model(src_batch)
+            logits = logits[:, :-1, :].contiguous().view(-1, len(vocab))
+            targets = tgt_batch[:, 1:].contiguous().view(-1)
 
-        loss = criterion(logits, targets)
-        loss.backward()
-        optimizer.step()
+            loss = criterion(logits, targets)
+            loss.backward()
+            optimizer.step()
 
-        total_loss += loss.item()
-    print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
-    checkpoint_data = {
-        "epoch": epoch,
-        "model_state": model.state_dict(),
-        "vocab": vocab,
+            total_loss += loss.item()
+        print(f"Epoch {epoch+1}, Loss: {total_loss / len(train_loader)}")
+        checkpoint_data = {
+            "epoch": epoch,
+            "model_state": model.state_dict(),
+            "vocab": vocab,
+        }
+        torch.save(checkpoint_data, f"checkpoint_epoch_{epoch+1}.pth")
+        print(f"Сохранён чекпоинт после эпохи {epoch+1}")
+
+    save_data = {
+        "model_state": model.state_dict(),  # веса модели
+        "vocab": vocab,  # твой словарь
     }
-    torch.save(checkpoint_data, f"checkpoint_epoch_{epoch+1}.pth")
-    print(f"Сохранён чекпоинт после эпохи {epoch+1}")
 
-
-save_data = {
-    "model_state": model.state_dict(),  # веса модели
-    "vocab": vocab,  # твой словарь
-}
-
-torch.save(save_data, "checkpoint.pth")
-print("Модель и словарь сохранены!")
+    torch.save(save_data, "checkpoint.pth")
+    print("Модель и словарь сохранены!")
