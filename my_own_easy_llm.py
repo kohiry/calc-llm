@@ -11,11 +11,11 @@ dataset = load_dataset("daily_dialog")
 # ==== vars =====
 
 BATCH_SIZE = 16
-EMBEDDING_DIM = 64
+EMBEDDING_DIM = 256
 HIDDEN_SIZE = 128
 LR = 0.001
 DROPOUT_PROB = 0.2
-
+MIN_FREQ = 2
 # ===============
 
 
@@ -37,8 +37,8 @@ def vocabular(pairs: list[tuple[str, str]]):
     for input_text, target_text in pairs:
         counter.update(input_text.split())
         counter.update(target_text.split())
-    min_freq = 5
-    words = [word for word, freq in counter.items() if freq >= min_freq]
+
+    words = [word for word, freq in counter.items() if freq >= MIN_FREQ]
     # Спец токены
     special_tokens = ["<pad>", "<sos>", "<eos>", "<unk>"]
 
@@ -59,14 +59,16 @@ def tokenize(text, vocab):
     return tokens
 
 
-def tokenize_pairs(pairs):
+def tokenize_pairs(pairs, vocab):
     res = []
     for input_text, target_text in pairs:
-        input_tokens = tokenize(input_text, vocab)
-        target_tokens = (
-            [vocab["<sos>"]] + tokenize(target_text, vocab) + [vocab["<eos>"]]
-        )
-        res.append((input_tokens, target_tokens))
+        # Сначала фильтрация по длине
+        if len(input_text.split()) > 1 and len(target_text.split()) > 1:
+            input_tokens = tokenize(input_text, vocab)
+            target_tokens = (
+                [vocab["<sos>"]] + tokenize(target_text, vocab) + [vocab["<eos>"]]
+            )
+            res.append((input_tokens, target_tokens))
     return res
 
 
@@ -144,7 +146,7 @@ if __name__ == "__main__":
 
     pairs = get_pairs()
     vocab = vocabular(pairs)
-    tokenized_pairs = tokenize_pairs(pairs)
+    tokenized_pairs = tokenize_pairs(pairs, vocab)
     dataset = DialogueDataset(tokenized_pairs)
     train_loader = DataLoader(
         dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
@@ -159,6 +161,7 @@ if __name__ == "__main__":
     for epoch in range(10):
         total_loss = 0
         for i, batch in enumerate(train_loader):
+            print(batch)
             print(f"Осталось до конца эпохи № {epoch}: {i} из {len(train_loader)}")
             src_batch = batch["src"]
             tgt_batch = batch["tgt"]

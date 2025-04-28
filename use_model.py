@@ -1,8 +1,6 @@
 from my_own_easy_llm import tokenize, SimpleRNNModel
 import torch
 
-# https://music.yandex.ru/album/33852636/track/132527339
-
 
 def generate_response(model, vocab, input_text, max_len=20, device="cpu"):
     model.eval()  # Переводим модель в режим оценки
@@ -46,7 +44,7 @@ def generate_response(model, vocab, input_text, max_len=20, device="cpu"):
 
 
 # Загрузка модели и словаря
-checkpoint = torch.load("checkpoint_epoch_4.pth", map_location="cpu")
+checkpoint = torch.load("checkpoint_epoch_1.pth", map_location="cpu")
 vocab = checkpoint["vocab"]
 model = SimpleRNNModel(len(checkpoint["vocab"]))
 model.load_state_dict(checkpoint["model_state"])
