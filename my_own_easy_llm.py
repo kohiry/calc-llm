@@ -1,28 +1,37 @@
 from datasets import load_dataset
 from collections import Counter
+from datasets.fingerprint import random
 import torch
 from torch.utils.data.dataset import Dataset
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
 import torch.nn as nn
 
+from pprint import pprint
 
-dataset = load_dataset("daily_dialog")
+
+DATASET = load_dataset("daily_dialog")
 # ==== vars =====
 
-BATCH_SIZE = 16
+BATCH_SIZE = 64
 EMBEDDING_DIM = 256
-HIDDEN_SIZE = 128
+HIDDEN_SIZE = 256
 LR = 0.001
 DROPOUT_PROB = 0.2
 MIN_FREQ = 2
+# Получаем только 30% от train-диалогов
+TRAIN_DIALOGS = DATASET["train"]
+TRAIN_LEN = int(len(TRAIN_DIALOGS) * 0.1)
+
+# Для воспроизводимости
+random.seed(42)
+TRAIN_DIALOGS = random.sample(list(TRAIN_DIALOGS), TRAIN_LEN)
 # ===============
 
 
 def get_pairs():
     pairs = []
-
-    for dialog in dataset["train"]:
+    for dialog in TRAIN_DIALOGS:
         utterances = dialog["dialog"]
         for i in range(len(utterances) - 1):
             input_text = utterances[i]
@@ -147,9 +156,9 @@ if __name__ == "__main__":
     pairs = get_pairs()
     vocab = vocabular(pairs)
     tokenized_pairs = tokenize_pairs(pairs, vocab)
-    dataset = DialogueDataset(tokenized_pairs)
+    ds = DialogueDataset(tokenized_pairs)
     train_loader = DataLoader(
-        dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn
+        ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn
     )
     model = SimpleRNNModel(len(vocab))
 
@@ -158,11 +167,12 @@ if __name__ == "__main__":
 
     # training
 
-    for epoch in range(10):
+    for epoch in range(100):
         total_loss = 0
         for i, batch in enumerate(train_loader):
-            print(batch)
-            print(f"Осталось до конца эпохи № {epoch}: {i} из {len(train_loader)}")
+            print(
+                f"Осталось до конца эпохи № {epoch}: {i} из {len(train_loader)} Loss: {total_loss / len(train_loader)}"
+            )
             src_batch = batch["src"]
             tgt_batch = batch["tgt"]
 

@@ -30,8 +30,8 @@ def generate_response(model, vocab, input_text, max_len=20, device="cpu"):
             logits = model.fc(out.squeeze(1))
             next_token = logits.argmax(dim=-1).item()
 
-            # if next_token == vocab["<eos>"]:
-            #    break
+            if next_token == vocab["<eos>"]:
+                break
 
             generated_tokens.append(next_token)
 
@@ -39,17 +39,17 @@ def generate_response(model, vocab, input_text, max_len=20, device="cpu"):
     response_tokens = [
         inv_vocab.get(token, "<unk>") for token in generated_tokens[1:]
     ]  # без <sos>
-    response_text = generated_tokens
+    response_text = " ".join(response_tokens)
     return response_text
 
 
 # Загрузка модели и словаря
-checkpoint = torch.load("checkpoint_epoch_1.pth", map_location="cpu")
+checkpoint = torch.load("checkpoint_epoch_15.pth", map_location="cpu")
 vocab = checkpoint["vocab"]
 model = SimpleRNNModel(len(checkpoint["vocab"]))
 model.load_state_dict(checkpoint["model_state"])
 
 # Генерация ответа
-input_text = "Hello, Adam"
+input_text = "Walk"
 response = generate_response(model, vocab, input_text)
 print("Response:", response)
