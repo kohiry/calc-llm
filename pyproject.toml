@@ -12,7 +12,7 @@ dependencies = [
     "numpy (>=2.2.5,<3.0.0)",
     "requests (>=2.32.3,<3.0.0)",
     "huggingface-hub[cli] (>=0.30.2,<0.31.0)",
-    "datasets (>=3.5.1,<4.0.0)"
+    "datasets[tasks] (>=3.5.1,<4.0.0)"
 ]
 
 

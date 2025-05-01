@@ -7,12 +7,14 @@ def tokenize(text):
     return re.findall(r"\b\w+\b", text.lower())
 
 
-def vectorize(text, vocab):
-    vec = torch.zeros(len(vocab))
-    for token in tokenize(text):
-        idx = vocab.get(token, 0)
-        vec[idx] += 1
-    return vec
+def vectorize(text, vocab, max_len=20):
+    tokens = tokenize(text)
+    indices = [vocab.get(token, 0) for token in tokens]
+    if len(indices) < max_len:
+        indices += [0] * (max_len - len(indices))
+    else:
+        indices = indices[:max_len]
+    return torch.tensor(indices)
 
 
 # ====================
@@ -28,17 +30,23 @@ class EmotionDataset(Dataset):
 
     def __getitem__(self, idx):
         x_vec, y_label = self.data[idx]
-        return x_vec, torch.tensor(y_label)
+        return x_vec.long(), torch.tensor(y_label).long()
 
 
 # создаём первую модель
 class EmotionClassifier(torch.nn.Module):
-    def __init__(self, input_dim, num_clases):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim):
         super().__init__()
-        self.fc = torch.nn.Linear(input_dim, num_clases)
+        self.embedding = torch.nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+        self.lstm = torch.nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.fc = torch.nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
-        return self.fc(x)
+        embedded = self.embedding(x)
+        _, (hidden, _) = self.lstm(embedded)
+        last_hidden = hidden[-1]
+        out = self.fc(last_hidden)
+        return out
 
 
 def evaluate(model, data_loader):

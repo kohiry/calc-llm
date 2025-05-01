@@ -1,7 +1,7 @@
 import pickle
 import torch
 
-from third.utils import EmotionClassifier
+from third.utils import EmotionClassifier, vectorize
 
 # --- Загрузка словарей ---
 with open("model/vocab.pkl", "rb") as f:
@@ -13,11 +13,14 @@ idx2label = {v: k for k, v in label2idx.items()}
 
 # --- Параметры модели ---
 input_dim = len(vocab)
+EMBEDDING_DIM = 50
+HIDDEN_DIM = 64
+
 output_dim = len(label2idx)
 
 
 # --- Загрузка модели ---
-model = EmotionClassifier(input_dim, output_dim)
+model = EmotionClassifier(input_dim, EMBEDDING_DIM, HIDDEN_DIM, output_dim)
 model.load_state_dict(torch.load("model/emotion_model.pth"))
 model.eval()
 
@@ -25,13 +28,7 @@ model.eval()
 def prediction_emotion(text, model, vocab):
     model.eval()
 
-    words = text.lower().split()
-    vector = torch.zeros(len(vocab))
-
-    for word in words:
-        if word in vocab:
-            idx = vocab[word]
-            vector[idx] += 1
+    vector = vectorize(text, vocab)
 
     with torch.no_grad():
         logits = model(vector.unsqueeze(0))

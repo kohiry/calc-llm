@@ -22,8 +22,6 @@ word_counts = Counter(all_tokens)
 vocab = {word: idx + 1 for idx, (word, _) in enumerate(word_counts.most_common())}
 vocab["<UNK>"] = 0
 
-print(f"Слов в словаре: {len(vocab)}")
-
 
 label2idx = {
     "joy": 0,
@@ -51,22 +49,25 @@ test_dataset = EmotionDataset(test_data)
 
 # Создаём DataLoader
 train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-test_loader = DataLoader(train_dataset, batch_size=8)
+test_loader = DataLoader(test_dataset, batch_size=8)
 
 
-input_dim = len(vocab)  # РАзмерность входного вектор
+vocab_size = len(vocab)  # РАзмерность входного вектор
+EMBEDDING_DIM = 50
+HIDDEN_DIM = 64
+LR = 0.0001
 num_classes = len(label2idx)  # 4 эмоции
 
-model = EmotionClassifier(input_dim, num_classes)
+model = EmotionClassifier(vocab_size, EMBEDDING_DIM, HIDDEN_DIM, num_classes)
 
 loss_fn = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR)
 
 # accuracy
 
 
 # алгоритм тренеровки
-EPOCHS = 10
+EPOCHS = 400
 
 for epoch in range(EPOCHS):
     model.train()
@@ -78,9 +79,12 @@ for epoch in range(EPOCHS):
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
+    if (epoch + 1) % 10 == 0:  # Каждые 10 эпох
+        print("Evaluate on test:")
+        evaluate(model, test_loader)
+        avg_loss = total_loss / len(train_loader)
+        print(f"Epoch {epoch + 1}/{EPOCHS} Loss: {avg_loss:.4f}")
 
-    avg_loss = total_loss / len(train_loader)
-    print(f"Epoch {epoch + 1}/{EPOCHS} Loss: {avg_loss:.4f}")
 
 evaluate(model, test_loader)
 torch.save(model.state_dict(), "model/emotion_model.pth")
